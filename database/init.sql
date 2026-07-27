@@ -31,7 +31,7 @@ INSERT INTO product (id, category, description, image_url, name, price) VALUES
 (7,'Fruits','healthy fruit','https://cdn.dummyjson.com/product-images/groceries/kiwi/1.webp','Kiwi',250),
 (8,'cosmetics','The Essence Mascara Lash Princess is a popular mascara known for its volumizing and lengthening effects. Achieve dramatic lashes with this long-lasting and cruelty-free formula.','https://cdn.dummyjson.com/product-images/beauty/essence-mascara-lash-princess/1.webp','Essence Mascara',450),
 (9,'cosmetics','The Red Lipstick is a classic and bold choice for adding a pop of color to your lips. With a creamy and pigmented formula, it provides a vibrant and long-lasting finish.','https://cdn.dummyjson.com/product-images/beauty/red-lipstick/1.webp','Red Lipstick',750),
-(10,'Grocerry','Refreshing fruit juice, packed with vitamins and great for staying hydrated','https://cdn.dummyjson.com/product-images/groceries/juice/1.webp','Juice',150)
+(10,'Grocerry','Refreshing fruit juice, packed with vitamins and great for staying hydrated','https://cdn.dummyjson.com/product-images/groceries/juice/1.webp','Juice',150),
 (11,'cosmetics','A versatile eyeshadow palette with a built-in mirror, great for on-the-go looks.','https://cdn.dummyjson.com/product-images/beauty/eyeshadow-palette-with-mirror/1.webp','Eyeshadow Palette',380),
 (12,'cosmetics','A finely milled setting powder for a smooth, matte finish that controls shine all day.','https://cdn.dummyjson.com/product-images/beauty/powder-canister/1.webp','Setting Powder',280),
 (13,'cosmetics','A quick-drying red nail polish with a rich, glossy, salon-quality finish.','https://cdn.dummyjson.com/product-images/beauty/red-nail-polish/1.webp','Red Nail Polish',180),
