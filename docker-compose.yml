@@ -1,0 +1,62 @@
+# Local dev/testing only - run this before touching Kubernetes at all, to
+# confirm the 3 services + frontend + database talk to each other correctly.
+# `docker compose up --build` and visit http://localhost:3000
+version: '3.9'
+
+services:
+
+  mysql:
+    build: ./database
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    ports:
+      - "8081:8081"
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_ROOT_PASSWORD=rootroot
+    depends_on:
+      - mysql
+
+  catalog-service:
+    build: ./catalog-service
+    container_name: catalog-service
+    ports:
+      - "8082:8082"
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_ROOT_PASSWORD=rootroot
+    depends_on:
+      - mysql
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    ports:
+      - "8083:8083"
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_ROOT_PASSWORD=rootroot
+      - CATALOG_SERVICE_URL=http://catalog-service:8082
+    depends_on:
+      - mysql
+      - catalog-service
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - user-service
+      - catalog-service
+      - order-service
+
+volumes:
+  mysql-data:
