@@ -1,0 +1,21 @@
+# This controller is what actually CREATES a real AWS Application Load
+# Balancer whenever you apply an Ingress object - without it, an Ingress
+# resource in EKS just sits there with no real load balancer behind it.
+# Requires IRSA (see terraform/modules/iam's OIDC provider) so this
+# controller pod can call the AWS ALB API with its own narrow permissions.
+#
+# Install via:
+#   helm repo add eks https://aws.github.io/eks-charts
+#   helm install aws-load-balancer-controller eks/aws-load-balancer-controller -f aws-load-balancer-controller-values.yaml
+
+clusterName: clicknkart-eks
+region: ap-south-1
+vpcId: Replace-with-your-vpc-id  # from "terraform output vpc_id"
+
+serviceAccount:
+  create: true
+  name: aws-load-balancer-controller
+  annotaions:
+    eks.amazonaws.com/role-arn: "replace-with-your-iam-role-arn"  # from "terraform output aws_load_balancer_controller_iam_role_arn"
+    # a role scoped only to ALB management, see docs/PHASE_INGRESS.md
+    
