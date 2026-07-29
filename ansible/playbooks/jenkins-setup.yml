@@ -1,0 +1,19 @@
+---
+# Run this ONCE against the Jenkins node group's EC2 instance, after
+# `terraform apply` creates it. This is Ansible's whole job in this
+# project: Terraform made the box exist, this playbook makes it USEFUL -
+# installing every tool the Jenkins pipeline will need to call later
+# (Docker to build images, kubectl/Helm to deploy, AWS CLI to push to ECR).
+- hosts: jenkins
+  become: yes
+  roles:
+    - docker
+    - kubectl
+    - helm
+    - awscli
+    - jenkins
+
+  post_tasks:
+    - name: Print initial Jenkins admin password location
+      debug:
+        msg: "Run: sudo cat /var/lib/jenkins/secrets/initialAdminPassword on the Jenkins box to get the setup wizard password"
