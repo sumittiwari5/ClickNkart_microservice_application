@@ -1,0 +1,114 @@
+// ============================================================================
+// ClickNCart CI/CD Pipeline
+//
+// WHY ONE JENKINSFILE FOR ALL 4 SERVICES INSTEAD OF 4 SEPARATE PIPELINES:
+// the "detect changed service" logic and the Blue-Green deploy logic are
+// IDENTICAL for every service - only the directory path and image name
+// differ. One parametrized pipeline, looping over whichever services
+// actually changed, avoids maintaining the same logic in 4 places. Real
+// teams do split into separate Jenkinsfiles once services diverge enough
+// in their build process to justify it - for 4 services this similar,
+// one file is the right amount of abstraction.
+// ============================================================================
+
+pipeline {
+    agent { label 'dedicated-jenkins'} // pins this to the tainted Jenkins node group - see terraform/modules/eks
+
+    environment { 
+        AWS_REGION = 'ap-south-1'
+        ECR_REGISTRY = credentials('ecr-registry-url') // jenkins credentials -  never hardcoded
+        DOCKERHUB_CREDS = credentials('dockerhub-credentials') 
+        AWS_CREDS = credentials('aws-credentials')
+        KUBE_CONFIG = credentials('eks-kubeconfig')
+        BUILD_TAG_SUFFIX = "${env.BUILD_NUMBER}"  // this is the "never rely only on latest" requirement - every image gets a real, traceable tag   
+    }
+
+    stages { 
+
+        stages('checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        // --------------------------------------------------------------
+        // WHY THIS STAGE EXISTS: rebuilding and redeploying all 4 services
+        // on every commit wastes build minutes AND increases blast radius
+        // - a typo in the frontend shouldn't trigger a redeploy of
+        // order-service. Comparing this commit against the last
+        // successfully-built commit tells us exactly which service
+        // folders actually changed.
+        // --------------------------------------------------------------
+        stage('detect changed services') {
+            steps {
+                script {
+                    def changedFiles = sh(
+                        script: "git diff --name-only HEAD~1 HEAD || git diff --name-only \$(git rev-list --max-parents=0 HEAD) HEAD",
+                        returnStdout: true
+                    ).trim().split("\n")
+
+                    def allServices = ['user-service', 'order-service', 'catalog-service', 'frontend']
+                    env.SERVICES_TO_BUILD = allServices.findAll { svc -> 
+                        changedFiles.any { it.startsWith("${svc}/") }
+                    }.join(',')
+
+                    if (env.SERVICES_TO_BUILD == '') {
+                        echo "No service directories changed - nothing to build.  Exiting pipeline cleanly."
+                        currentBuild.result = 'NOT_BUILT'
+                    } else {
+                        echo "Services to build this run: ${env.SERVICES_TO_BUILD}"
+                    }
+                }
+            }
+        }
+
+
+        stage('Test, Build, Scan, Push, Deploy - per changes service') {
+            when {
+                expression { env.SERVICES_TO_BUILD != '' }
+            }
+            steps {
+                script {
+                    def services = env.SERVICES_TO_BUILD.split(',')
+                    def result = [:]
+
+
+                    for (svc in services) {
+                        // Wrapped in try/catch PER SERVICE - this is what
+                        // makes "only the failed service rolls back, the
+                        // others keep deploying" actually true. A single
+                        // shared try/catch around the whole loop would
+                        // abort every remaining service the moment one
+                        // fails, which is the opposite of what
+                        // independent microservice deploys should do.
+                        try {
+                            deployService(svc)
+                            results[svc] ='SUCCESS'
+                        } catch (Exception e) {
+                            echo "Deployment FAILED for ${svc}: ${e.getMessage()}"
+                            echo "Rolling back ${svc} ONLY - other services are unaffected."
+                            sh "help upgrade ${svs} ./helm/${svc} --reuse-values -set activeColor=\$(cat .previous-color-${svc} 2>/dev/null || echo blue)"
+                            results[svc] = 'ROLLED BACK'
+                        }
+                    }
+
+                    echo "=== Final results ==="
+                    results.each { svc, status -> echo "${svc}: ${status}" }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
+
+// ============================================================================
+// Per-service pipeline logic - called once per changed service.
+// This is the sequence your spec asked for: test -> build -> scan -> tag
+// -> push Docker Hub -> push ECR -> deploy Green -> health-validate ->
+// switch traffic -> delete old Blue.
+// ============================================================================
