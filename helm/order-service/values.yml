@@ -1,0 +1,51 @@
+# WHY BLUE-GREEN IS IMPLEMENTED THIS WAY (two full Deployments + a Service
+# selector switch), INSTEAD OF A SPECIAL "BlueGreen" KUBERNETES OBJECT:
+# plain Kubernetes has no such object - Blue-Green is a PATTERN you build
+# out of ordinary Deployments and Services, not a built-in feature. The
+# pattern: run TWO complete Deployments at once (one per color), each with
+# its own full set of pods. The single Service in front of them selects
+# pods by a "color" label. Switching all production traffic from Blue to
+# Green is just editing which color the Service's selector points at -
+# instant, and trivially reversible by flipping it back, which is exactly
+# what makes rollback so clean and fast in this model.
+
+image:
+  repository: REPLACE_WITH_ECR_URL/clickncart/order-service
+  tag: "1.0.0-build1"      # NEVER "latest" - see your spec's own requirement on this
+
+activeColor: blue           # which color the Service currently routes to - THIS is the line Jenkins flips during a Blue-Green switch
+
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 500m
+    memory: 768Mi
+
+# This is what physically keeps order-service pods OFF the frontend and
+# jenkins node groups - matches the taints set in terraform/modules/eks.
+nodeSelector:
+  role: backend
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "backend"
+    effect: "NoSchedule"
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+env:
+  MYSQL_HOST: "REPLACE_WITH_RDS_ENDPOINT"
+  # Kubernetes Service DNS name, NOT an IP - Kubernetes' internal DNS
+  # resolves this to whichever catalog-service pod (blue or green,
+  # whichever is currently active) should receive the call.
+  CATALOG_SERVICE_URL: "http://catalog-service:8082"
+
+# Populated from Kubernetes Secret, never plaintext here - see templates/secret.yaml
+secretName: order-service-secret

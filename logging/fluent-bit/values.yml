@@ -1,0 +1,39 @@
+# WHY FLUENT BIT, NOT LOGSTASH (the "L" people usually assume in "ELK"):
+# Fluent Bit is a much lighter-weight log shipper (C, not JVM-based) -
+# it runs as a DaemonSet (one pod per node) whose only job is tailing
+# container logs and forwarding them to Elasticsearch. Logstash does more
+# (heavier transformation), at a real memory cost you don't need here -
+# your logs are already structured JSON from Spring Boot's default logging,
+# so minimal transformation is needed in transit. This mirrors your own
+# spec's file naming (fluent-bit/) rather than assuming Logstash.
+#
+# Install via the official Helm chart:
+#   helm repo add fluent https://fluent.github.io/helm-charts
+#   helm install fluent-bit fluent/fluent-bit -f logging/fluent-bit/values.yaml
+
+config:
+  outputs: |
+    [OUTPUT]
+        Name            es
+        Match           kube.*
+        Host            elasticsearch-master
+        Port            9200
+        Logstash_Format On
+        Logstash_Prefix clickncart
+        Retry_Limit     False
+
+  filters: |
+    [FILTER]
+        Name                kubernetes
+        Match               kube.*
+        # Enriches every log line with pod name, namespace, and CONTAINER
+        # LABELS - this is what lets you filter Kibana by "app=catalog-service"
+        # or "color=blue" later, tying logs back to exactly which Blue-Green
+        # deployment produced them.
+        Merge_Log           On
+        Keep_Log            Off
+        K8S-Logging.Parser  On
+
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits:   { cpu: 200m, memory: 256Mi }

@@ -1,0 +1,30 @@
+image:
+  repository: REPLACE_WITH_ECR_URL/clickncart/frontend
+  tag: "1.0.0-build1"
+
+activeColor: blue
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+# Frontend gets its OWN small node group - matches "Frontend Node Group:
+# small EC2 instances, no backend services" from your spec. This taint/
+# toleration pair is what makes that a hard guarantee, not a hope.
+nodeSelector:
+  role: frontend
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "frontend"
+    effect: "NoSchedule"
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70

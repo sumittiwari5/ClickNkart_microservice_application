@@ -1,0 +1,72 @@
+# TWO Deployments exist ALWAYS (blue AND green) - not created/destroyed
+# per release. During a normal release: the INACTIVE color gets the new
+# image version and is validated; once healthy, the Service switches to
+# it. The color that's now inactive stays running (old version) until the
+# next release needs it - it's your instant rollback target, not scaled
+# to zero.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-green
+  labels:
+    app: user-service
+    color: green
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: user-service
+      color: green
+  template:
+    metadata:
+      labels:
+        app: user-service
+        color: green
+    spec:
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      containers:
+        - name: user-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - secretRef:
+                name: {{ .Values.secretName }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          # THREE DIFFERENT PROBES, THREE DIFFERENT JOBS:
+          startupProbe:
+            # Gives Spring Boot room to fully boot (JVM warmup, DB
+            # connection pool init) BEFORE liveness/readiness even start
+            # checking. Without this, a slow-starting pod can get killed
+            # by the liveness probe for "not responding" when it just
+            # hasn't finished starting yet.
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            # Controls whether THIS pod receives traffic RIGHT NOW. A pod
+            # can be alive but temporarily unready (e.g. briefly can't
+            # reach the DB) - readiness pulls it out of the Service's
+            # endpoint list without killing it, then adds it back once
+            # healthy again.
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            # Controls whether the pod gets KILLED and RESTARTED. This is
+            # for catching a truly stuck/deadlocked process that will
+            # never recover on its own - a blunter, more drastic check
+            # than readiness.
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 15

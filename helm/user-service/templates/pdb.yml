@@ -1,0 +1,28 @@
+# A Pod Disruption Budget protects you from Kubernetes' OWN routine
+# maintenance - not app crashes. When the Cluster Autoscaler drains a
+# node to scale it down, or EKS does a node AMI upgrade, Kubernetes evicts
+# pods gracefully. Without a PDB, it could evict ALL of user-service's
+# pods at once if they happen to sit on the same node, causing a real
+# outage from a routine operation. This guarantees at least 1 pod of the
+# ACTIVE color stays up at all times during any voluntary disruption.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: user-service-blue-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: user-service
+      color: blue
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: user-service-green-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: user-service
+      color: green

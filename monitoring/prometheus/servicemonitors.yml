@@ -1,0 +1,49 @@
+# One ServiceMonitor per backend service - each Spring Boot app already
+# exposes Prometheus-format metrics at /actuator/prometheus (via the
+# micrometer-registry-prometheus dependency - add this to each service's
+# pom.xml when you implement this phase). This is what tells Prometheus
+# WHERE to scrape from and HOW OFTEN, per service.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: catalog-service-monitor
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: catalog-service
+  endpoints:
+    - port: "8082"
+      path: /actuator/prometheus
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: user-service-monitor
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: user-service
+  endpoints:
+    - port: "8081"
+      path: /actuator/prometheus
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: order-service-monitor
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: order-service
+  endpoints:
+    - port: "8083"
+      path: /actuator/prometheus
+      interval: 15s
