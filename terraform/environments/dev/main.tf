@@ -35,6 +35,11 @@ module "eks" {
   eks_nodes_sg_id     = module.security_groups.eks_nodes_sg_id
 }
 
+module "irsa" {
+  source = "../../modules/irsa"
+  eks_oidc_issuer_url = module.eks.oidc_issuer_url
+}
+
 module "ecr" {
   source = "../../modules/ecr"
 }

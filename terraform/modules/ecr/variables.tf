@@ -1,4 +1,5 @@
 variable "project_name" {
+  description = "Project name used as the prefix for AWS resources"
   type    = string
   default = "clickncart"
 }

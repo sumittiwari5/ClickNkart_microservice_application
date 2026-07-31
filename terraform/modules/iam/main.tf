@@ -65,29 +65,3 @@ resource "aws_iam_role_policy_attachment" "node_ecr_readonly" {
   role       = aws_iam_role.eks_node_group.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly" # lets nodes pull your Docker images from ECR
 }
-
-# ---------------- OIDC Provider - required for IRSA ----------------
-# IRSA (IAM Roles for Service Accounts) is how a specific POD gets its own
-# narrow AWS permissions, instead of every pod on a node inheriting the
-# whole node's IAM role (which would be a much bigger blast radius if any
-# one pod were compromised). This requires the EKS cluster's OIDC issuer
-# to be registered as an IAM identity provider - that's what this
-# resource does. The AWS Load Balancer Controller and Cluster Autoscaler,
-# set up later, both need this.
-resource "aws_iam_openid_connect_provider" "eks" {
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [var.eks_oidc_thumbprint]
-  url             = var.eks_oidc_issuer_url
-}
-
-variable "eks_oidc_issuer_url" {
-  description = "Set this AFTER the EKS cluster is created - it's a chicken-and-egg dependency, see environments/dev/main.tf for how it's wired"
-  type        = string
-  default     = ""
-}
-
-variable "eks_oidc_thumbprint" {
-  description = "AWS's own root CA thumbprint - see docs/PHASE_1_TERRAFORM_FOUNDATION.md for how to fetch this"
-  type        = string
-  default     = "9e99a48a9960b14926bb7f3b02e22da2b0ab7280"
-}
