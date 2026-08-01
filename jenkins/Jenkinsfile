@@ -1,15 +1,13 @@
 // ============================================================================
 // ClickNCart CI/CD Pipeline
 //
-// WHY ONE JENKINSFILE FOR ALL 4 SERVICES INSTEAD OF 4 SEPARATE PIPELINES:
-// the "detect changed service" logic and the Blue-Green deploy logic are
-// IDENTICAL for every service - only the directory path and image name
-// differ. One parametrized pipeline, looping over whichever services
-// actually changed, avoids maintaining the same logic in 4 places. Real
-// teams do split into separate Jenkinsfiles once services diverge enough
-// in their build process to justify it - for 4 services this similar,
-// one file is the right amount of abstraction.
+// Replaces the old fixed blue/green color-flip with incrementally
+// versioned Deployments (catalog-service-v1, -v2, -v3...). See
+// docs/PHASE_BLUEGREEN.md for the full reasoning. This file only handles
+// deploy + promote; actually DELETING an old version is deliberately NOT
+// here - see jenkins/CleanupJenkinsfile, a separate scheduled pipeline.
 // ============================================================================
+
 
 pipeline {
     agent { label 'dedicated-jenkins'} // pins this to the tainted Jenkins node group - see terraform/modules/eks
@@ -39,7 +37,7 @@ pipeline {
         // successfully-built commit tells us exactly which service
         // folders actually changed.
         // --------------------------------------------------------------
-        stage('detect changed services') {
+        stage('Detect Changed Services') {
             steps {
                 script {
                     def changedFiles = sh(
@@ -83,12 +81,13 @@ pipeline {
                         // independent microservice deploys should do.
                         try {
                             deployService(svc)
-                            results[svc] ='SUCCESS'
+                            results[svc] ='SUCCESS - promoted to live'
                         } catch (Exception e) {
                             echo "Deployment FAILED for ${svc}: ${e.getMessage()}"
                             echo "Rolling back ${svc} ONLY - other services are unaffected."
-                            sh "help upgrade ${svs} ./helm/${svc} --reuse-values --set activeColor=\$(cat .previous-color-${svc} 2>/dev/null || echo blue)"
-                            results[svc] = 'ROLLED BACK'
+                            echo "Aborting the candidate for ${svc} ONLY - live version is untouched, other services are unaffected."
+                            abortCandidate(svc)
+                            results[svc] = 'ABORTED - candidate rolled back, live version never touched'
                         }
                     }
 
@@ -107,10 +106,11 @@ pipeline {
 }
 
 // ============================================================================
-// Per-service pipeline logic - called once per changed service.
-// This is the sequence your spec asked for: test -> build -> scan -> tag
-// -> push Docker Hub -> push ECR -> deploy Green -> health-validate ->
-// switch traffic -> delete old Blue.
+// Per-service deploy logic: build -> scan -> push -> deploy CANDIDATE ->
+// health-validate -> PROMOTE candidate to live (old live becomes retired).
+// Note this is a meaningfully different shape than the old blue/green
+// version: there's no "switch to the other fixed-name object" step -
+// instead, the version NUMBERS themselves shift roles.
 // ============================================================================
 def deployService(String svc) {
     def imageTag = "1.0.${env.BUILD_TAG_SUFFIX}"
@@ -160,63 +160,93 @@ def deployService(String svc) {
         """
     }
 
-    stage("[${svc}] Deploy to Inactive Color") {
-        // Figure out which color is CURRENTLY live, then deploy the new
-        // image to the OTHER one - this is the core Blue-Green move.
+    stage("[${svc}] Deploy Candidate Version") {
+        // Read the CURRENT liveVersion straight off the real Helm release,
+        // not off a locally-remembered value - this is what keeps the
+        // pipeline correct even if a manual `helm upgrade` happened
+        // outside the pipeline since the last run.
         
-        def currentColor = sh(
-            script: "kubectl get service ${svc == 'frontend' ? 'frontend-service' : svc} -o jsonpath='{.spec.selector.color}'",
+        def currentLive = sh(
+            script: "helm get values ${svc} -o json | jq -r '.liveVersion'",
             returnStdout: true
-        ).trim() ?: 'blue'
-        def targetColor = (currentColor == 'blue') ? 'green' : 'blue'
+        ).trim().toInteger()
 
-        sh "echo ${currentColor} > .previous-color-${svc}"  // remembered for rollback, see the catch block above
+        nextVersion = currentLive + 1
+        env."CANDIDATE_VERSION_${svc}" = nextVersion.toString()
 
         sh """
-            helm upgrade --install ${svc} ./helm/${svc} \\
-                --set image.repository=${env.ECR_REGISTRY}/clicknkart/${svc} \\
-                --set image.tag=${imageTag} \\
-                --reuse-values
+            helm upgrade ${svc} ./helm/${svc} \\
+                --reuse-values \\
+                --set candidateVersion=${nextVersion} \\
+                --set imageTags.v${nextVersion}=${env.ECR_REGISTRY}/clickncart/${svc}:${imageTag} \\
+                --set image.repository=${env.ECR_REGISTRY}/clickncart/${svc}
         """
-        // NOTE: this upgrades the ${targetColor} Deployment's image only
-        // (both blue/green Deployments exist per the chart design) -
-        // activeColor in the Service is NOT changed yet, so the currently
-        // live color keeps serving 100% of traffic through the whole
-        // build/scan/deploy sequence above. Zero risk to production
-        // during this stage.
-
-        env."TARGET_COLOR_${svc}" = targetColor
+        // NOTE: liveVersion is untouched here - the Service still routes
+        // 100% traffic to the old live version through this entire stage
+        // and the health check below. Zero risk to production so far.
     }
 
     stage("[${svc}] Health Validation") {
-        // Poll the NEW color's pods directly (bypassing the Service,
-        // which still points at the OLD color) - probes already gate
-        // pod readiness via Kubernetes itself; this stage additionally
-        // confirms the app-level /actuator/health (or / for frontend)
-        // actually returns healthy before we dare switch real traffic.
         retry(5) {
             sh """
                 kubectl wait --for=condition=ready pod \\
-                    -l app=${svc},color=${env."TARGET_COLOR_${svc}"} \\
+                    -l app=${svc},version=v${nextVersion} \\
                     --timeout=60s
             """
         }
     }
 
-    stage("[${svc}] Switch Traffic to New Color") {
-        sh "helm upgrade ${svc} ./helm/${svc} --reuse-values --set activeColor=${env."TARGET_COLOR_${svc}"}"
-        echo "${svc}: traffic switched to ${env."TARGET_COLOR_${svc}"}. Old color left running as instand rollback target."
-    }
+    stage("[${svc}] Promote Candidate to Live") {
+        def previousLive = sh(
+            script: "helm get values ${svc} -o json | jq -r '.liveVersion'",
+            returnStdout: true
+        ).trim()
 
-    stage("[${svc}] Cleanup Old Color") {
-        // Deliberately NOT deleting the old color's pods here, matching
-        // your own spec's scheduling philosophy: leave them running as a
-        // safety margin for one more release cycle, only scale old-color
-        // replicas down (not delete the Deployment) so a fast rollback
-        // is still possible if a problem surfaces after this pipeline
-        // finished. A separate, deliberate cleanup step (manual or on a
-        // delay) is a more defensible production pattern than an
-        // automatic instant delete right after switching traffic.
-        echo "Old color pods left running as rollback safety margin - not auto-deleted."
+        def retiredAt = sh(script: "date -u +%Y-%m-%dT%H:%M:%SZ", returnStdout: true).trim()
+
+        // Build the NEW retiredVersions list explicitly: existing entries
+        // (there may already be one or more, if an earlier retired
+        // version hasn't been cleaned up yet - that's expected, see
+        // docs/PHASE_BLUEGREEN.md) PLUS the version that's retiring right
+        // now. jq constructs this as one clean JSON array; --set-json
+        // then replaces the whole list atomically in one helm upgrade -
+        // no partial/conflicting state possible.
+        def updatedRetiredList = sh(
+            script: """
+                helm get values ${svc} -o json | jq -c \\
+                  --arg v "${previousLive}" --arg t "${retiredAt}" \\
+                  '.retiredVersions + [{"version": (\$v|tonumber), "retiredAt": \$t}]'
+            """,
+            returnStdout: true
+        ).trim()
+
+        // This ONE command is the entire traffic switch: liveVersion moves
+        // to the new version (flips the Service selector), the OLD live
+        // version is now IN retiredVersions with a timestamp (starts its
+        // bounded rollback window), and candidateVersion is cleared
+        // (nothing "in progress" anymore).
+        sh """
+            helm upgrade ${svc} ./helm/${svc} \\
+                --reuse-values \\
+                --set liveVersion=${nextVersion} \\
+                --set candidateVersion=null \\
+                --set-json 'retiredVersions=${updatedRetiredList}'
+        """
+        echo "${svc}: v${nextVersion} is now live. v${previousLive} retired at ${retiredAt} - kept as rollback margin until jenkins/CleanupJenkinsfile expires it."
     }
+}
+
+// Called from the per-service catch block above. Since liveVersion is
+// NEVER touched until the Promote stage succeeds, "rollback" at this
+// point just means removing the half-deployed candidate - the real live
+// version was never at risk in the first place. This is a meaningfully
+// SAFER failure mode than the old design, worth noticing: a failed
+// deploy here can't accidentally take down production, because
+// production was never pointed at the new version to begin with.
+def abortCandidate(String svc) {
+    sh """
+        helm upgrade ${svc} ./helm/${svc} \\
+            --reuse-values \\
+            --set candidateVersion=null
+    """
 }

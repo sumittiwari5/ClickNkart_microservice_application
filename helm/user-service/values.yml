@@ -1,19 +1,41 @@
-# WHY BLUE-GREEN IS IMPLEMENTED THIS WAY (two full Deployments + a Service
-# selector switch), INSTEAD OF A SPECIAL "BlueGreen" KUBERNETES OBJECT:
-# plain Kubernetes has no such object - Blue-Green is a PATTERN you build
-# out of ordinary Deployments and Services, not a built-in feature. The
-# pattern: run TWO complete Deployments at once (one per color), each with
-# its own full set of pods. The single Service in front of them selects
-# pods by a "color" label. Switching all production traffic from Blue to
-# Green is just editing which color the Service's selector points at -
-# instant, and trivially reversible by flipping it back, which is exactly
-# what makes rollback so clean and fast in this model.
+# ============================================================================
+# VERSIONED BLUE-GREEN MODEL - replaces the old activeColor: blue/green.
+#
+# Three roles, tracked here as plain values (no more fixed "-blue"/"-green"
+# object names - see docs/PHASE_BLUEGREEN.md for the full reasoning):
+#   liveVersion      - currently receiving 100% traffic. Always set.
+#   candidateVersion - the new version being deployed/validated right now.
+#                       Empty when no release is in progress.
+#   retiredVersions   - a LIST of previous live versions kept temporarily as
+#                       rollback safety margin. Can legitimately hold MORE
+#                       THAN ONE entry if a new release goes out before the
+#                       scheduled cleanup job has cleared an earlier one -
+#                       that's expected and fine, not a bug (see the
+#                       Jenkinsfile's rollback-window discussion).
+# ============================================================================
 
 image:
   repository: REPLACE_WITH_ECR_URL/clickncart/user-service
-  tag: "1.0.0-build1"      # NEVER "latest" - see your spec's own requirement on this
 
-activeColor: blue           # which color the Service currently routes to - THIS is the line Jenkins flips during a Blue-Green switch
+liveVersion: 1
+candidateVersion: ~   # ~ is YAML for null/empty
+
+# Every version's OWN image tag - kept as a map because liveVersion and
+# candidateVersion (and any retiredVersions) can all be genuinely different
+# image builds, existing simultaneously, during a release.
+imageTags:
+  v1: "1.0.1"
+
+# Retired versions - each needs its OWN retirement timestamp, since they
+# can retire at different times. The scheduled cleanup job
+# (jenkins/CleanupJenkinsfile) reads `retiredAt` per entry to decide
+# whether that specific version's bounded window has passed yet.
+retiredVersions: []
+# Example of what this looks like WHILE populated (do not uncomment - Helm
+# writes this list via --set-json from the Jenkinsfile, not by hand-editing):
+# retiredVersions:
+#   - version: 2
+#     retiredAt: "2026-08-15T10:00:00Z"
 
 replicaCount: 2
 
@@ -25,8 +47,6 @@ resources:
     cpu: 500m
     memory: 768Mi
 
-# This is what physically keeps user-service pods OFF the frontend and
-# jenkins node groups - matches the taints set in terraform/modules/eks.
 nodeSelector:
   role: backend
 tolerations:
@@ -43,5 +63,4 @@ hpa:
 env:
   MYSQL_HOST: "REPLACE_WITH_RDS_ENDPOINT"
 
-# Populated from Kubernetes Secret, never plaintext here - see templates/secret.yaml
 secretName: user-service-secret

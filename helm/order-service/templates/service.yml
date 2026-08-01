@@ -11,7 +11,7 @@ metadata:
 spec:
   selector:
     app: order-service
-    color: {{ .Values.activeColor }}
+    version: "v{{ .Values.liveVersion }}"
   ports:
     - port: 8083
       targetPort: 8083

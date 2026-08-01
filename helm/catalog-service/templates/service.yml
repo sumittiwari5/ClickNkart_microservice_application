@@ -11,7 +11,7 @@ metadata:
 spec:
   selector:
     app: catalog-service
-    color: {{ .Values.activeColor }}
+    version: "v{{ .Values.liveVersion }}"
   ports:
     - port: 8082
       targetPort: 8082

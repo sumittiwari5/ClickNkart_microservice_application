@@ -21,6 +21,11 @@
     state: present
     update_cache: yes
 
+- name: Install jq (needed by the versioned Blue-Green Jenkinsfiles for JSON manipulation)
+  apt:
+    name: jq
+    state: present
+
 - name: Ensure Jenkins is running and enabled on boot
   systemd:
     name: jenkins
