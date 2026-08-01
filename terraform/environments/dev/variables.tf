@@ -5,7 +5,7 @@ variable "aws_region" {
 
 variable "admin_ip_cidr" {
     description = "Your public IP in CIDR form, e.g. 203.0.113.5/32 - get it from curl ifconfig.me"
-    type = sting
+    type = string
 }
 
 variable "db_password" {
