@@ -56,3 +56,37 @@ module "monitoring" {
   eks_cluster_name  = module.eks.cluster_name
   vpc_id            = module.vpc.vpc_id
 }
+
+# Always resolves to the current Ubuntu 24.04 AMI for your region -
+# hardcoding an AMI ID goes stale the moment Canonical publishes a new
+# patched image; this data source looks it up fresh on every plan/apply.
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"] # Canonical's official AWS account ID
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-noble-24.04-amd64-server-*"]
+  }
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+resource "aws_instance" "jenkins" {
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t3.medium"
+  key_name                    = var.jenkins_key_name
+  subnet_id                   = module.vpc.public_subnet_ids[0]   # PUBLIC - not private, corrected from last message
+  vpc_security_group_ids      = [module.security_groups.jenkins_sg_id]
+  associate_public_ip_address = true
+
+  root_block_device {
+    volume_size = 40 # GB - Docker images, Jenkins workspace, plugins all live here
+    volume_type = "gp3" #  better price/performance than the default gp2
+  }
+
+  tags = {
+    Name = "clickncart-jenkins"
+  }
+}

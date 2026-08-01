@@ -27,31 +27,6 @@ resource "aws_eks_cluster" "main" {
   }
 }
 
-# ---------------- Jenkins Node Group ----------------
-resource "aws_eks_node_group" "jenkins" {
-  cluster_name    = aws_eks_cluster.main.name
-  node_group_name = "${var.project_name}-jenkins-ng"
-  node_role_arn   = var.node_role_arn
-  subnet_ids      = var.private_subnet_ids
-  instance_types  = [var.jenkins_instance_type]
-
-  scaling_config {
-    desired_size = 1
-    min_size     = 1
-    max_size     = 1 # Jenkins is a single stateful instance in this design - it does not horizontally scale like the app tiers do
-  }
-
-  labels = {
-    role = "jenkins"
-  }
-
-  taint {
-    key    = "dedicated"
-    value  = "jenkins"
-    effect = "NO_SCHEDULE" # this is what physically stops any app pod from ever landing here
-  }
-}
-
 # ---------------- Frontend Node Group ----------------
 resource "aws_eks_node_group" "frontend" {
   cluster_name    = aws_eks_cluster.main.name
@@ -59,6 +34,7 @@ resource "aws_eks_node_group" "frontend" {
   node_role_arn   = var.node_role_arn
   subnet_ids      = var.private_subnet_ids
   instance_types  = [var.frontend_instance_type]
+  # disk_size = 20   # GB - one small nginx image, generous already - leaving it default beacause the default is 20GB anyway
 
   scaling_config {
     desired_size = 2
@@ -84,6 +60,7 @@ resource "aws_eks_node_group" "backend" {
   node_role_arn   = var.node_role_arn
   subnet_ids      = var.private_subnet_ids
   instance_types  = [var.backend_instance_type]
+  disk_size = 30   # GB - 3 JVM images, up to 2 versions each during a release, plus baseline
 
   scaling_config {
     desired_size = 2

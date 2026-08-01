@@ -13,3 +13,9 @@ variable "db_password" {
     type = string
     sensitive = true
 }
+
+variable "jenkins_key_name" {
+  description = "Name of the EC2 Key Pair already registered in AWS (see: aws ec2 import-key-pair)"
+  type        = string
+  default = "jen_dock"
+}
