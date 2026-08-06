@@ -17,7 +17,7 @@ services:
     # environment variables.
     environment: 
       # setting the root password for MySQL.
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: rootroot
 
     # exposing the database on port 3306 for the external access for the development or administration.
     ports:
@@ -53,8 +53,8 @@ services:
 
     # setting environment variables for the user-service container to connect to the MySQL database.
     environment:
-      - MYSQL_HOST= ${MYSQL_HOST}
-      - MYSQL_ROOT_PASSWORD= ${MYSQL_ROOT_PASSWORD}
+      - MYSQL_HOST=mysql
+      - MYSQL_ROOT_PASSWORD=rootroot
 
     # specifying that the user-service container depends on the MySQL container to be up and running before it starts.
     depends_on:
@@ -82,8 +82,8 @@ services:
 
     # setting environment variables for the catalog-service container to connect to the MySQL database.
     environment:
-      - MYSQL_HOST= ${MYSQL_HOST}
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_HOST=mysql
+      - MYSQL_ROOT_PASSWORD=rootroot
 
     # specifying the order of container creation.
     depends_on:
@@ -112,8 +112,8 @@ services:
 
     # setting environment variables for the order-service container to connect to the MySQL database and catalog-service.
     environment:
-      - MYSQL_HOST= ${MYSQL_HOST}
-      - MYSQL_ROOT_PASSWORD= ${MYSQL_ROOT_PASSWORD}
+      - MYSQL_HOST=mysql
+      - MYSQL_ROOT_PASSWORD=rootroot
       - CATALOG_SERVICE_URL=http://catalog-service:8082
 
     # specifying the order of container creation.
