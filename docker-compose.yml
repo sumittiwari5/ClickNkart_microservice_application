@@ -6,57 +6,154 @@ version: '3.9'
 services:
 
   mysql:
-    build: ./database
+    # using the official MySQL image from Docker Hub.
+    image: mysql:8.4
+    # setting a custom name for the MySQL container.
     container_name: mysql
+    
+    # restarting the MySQL container unless it is explicitly stopped.
+    restart: unless-stopped
+
+    # environment variables.
+    environment: 
+      # setting the root password for MySQL.
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+
+    # exposing the database on port 3306 for the external access for the development or administration.
     ports:
       - "3306:3306"
-    volumes:
+
+    volumes: 
+      # storing files in named Docker volume to persist the database data even if the container is removed or recreated.
       - mysql-data:/var/lib/mysql
+      # mounting the init.sql file into the special directory that the official MySQL image scans on first startup.
+      # if the data directory is empty, MySQL automatically executes the scripts.
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+    networks:
+      # Connects the database container to the shared network so the backend services can connect using:
+      # spring.datasource.url=jdbc:mysql://mysql:3306/clickncart
+      - clickncart-network
 
   user-service:
-    build: ./user-service
+    # using the Dockerfile in the user-service directory to build the image for the user-service container.
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+
+    # setting a custom name for the user-service container.
     container_name: user-service
+
+    # restarting the user-service container unless it is explicitly stopped.
+    restart: unless-stopped
+
+    # exposing the user-service on port 8081 for the external access.
     ports:
       - "8081:8081"
+
+    # setting environment variables for the user-service container to connect to the MySQL database.
     environment:
-      - MYSQL_HOST=mysql
-      - MYSQL_ROOT_PASSWORD=rootroot
+      - MYSQL_HOST= ${MYSQL_HOST}
+      - MYSQL_ROOT_PASSWORD= ${MYSQL_ROOT_PASSWORD}
+
+    # specifying that the user-service container depends on the MySQL container to be up and running before it starts.
     depends_on:
       - mysql
+
+    networks:
+      # Connects the user-service container to the shared network so it can connect to the MySQL database using the hostname "mysql".
+      - clickncart-network
 
   catalog-service:
-    build: ./catalog-service
+    # using the Dockerfile in the catalog-service directory to build the image for the catalog-service container.
+    build:
+      context: ./catalog-service
+      dockerfile: Dockerfile
+
+    # setting a custom name for the catalog-service container.
     container_name: catalog-service
+
+    # restarting the catalog-service container unless it is explicitly stopped.
+    restart: unless-stopped
+
+    # exposing the catalog-service on port 8082 for the external access.
     ports:
       - "8082:8082"
+
+    # setting environment variables for the catalog-service container to connect to the MySQL database.
     environment:
-      - MYSQL_HOST=mysql
-      - MYSQL_ROOT_PASSWORD=rootroot
+      - MYSQL_HOST= ${MYSQL_HOST}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+
+    # specifying the order of container creation.
     depends_on:
       - mysql
+      - user-service
+
+    networks:
+      # connects this service to the network as other services are connected to the same network.
+      - clickncart-network
 
   order-service:
-    build: ./order-service
+    # using the Dockerfile in the order-service directory to build the image for the order-service container.
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+
+    # setting a custom name for the order-service container.
     container_name: order-service
+
+    # restarting the order-service container unless it is explicitly stopped.
+    restart: unless-stopped
+
+    # exposing the order-service on port 8083 for the external access.
     ports:
       - "8083:8083"
+
+    # setting environment variables for the order-service container to connect to the MySQL database and catalog-service.
     environment:
-      - MYSQL_HOST=mysql
-      - MYSQL_ROOT_PASSWORD=rootroot
+      - MYSQL_HOST= ${MYSQL_HOST}
+      - MYSQL_ROOT_PASSWORD= ${MYSQL_ROOT_PASSWORD}
       - CATALOG_SERVICE_URL=http://catalog-service:8082
+
+    # specifying the order of container creation.
     depends_on:
       - mysql
+      - user-service
       - catalog-service
 
+    networks:
+      # connects this service to the network as other services are connected to the same network.
+      - clickncart-network
+
   frontend:
-    build: ./frontend
+    # using the Dockerfile in the frontend directory to build the image for the frontend container.
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    # setting a custom name for the frontend container.
     container_name: frontend
+
+    # restarting the order-service container unless it is explicitly stopped.
+    restart: unless-stopped
+
+    # exposing the frontend on port 3000 for the external access.
     ports:
       - "3000:80"
+
+    # specifying the order of container creation.
     depends_on:
       - user-service
       - catalog-service
       - order-service
 
+    networks:
+      # connects this service to the network as other services are connected to the same network.
+      - clickncart-network
+
 volumes:
   mysql-data:
+
+networks:
+  clickncart-network:
