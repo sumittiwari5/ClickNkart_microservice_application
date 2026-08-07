@@ -1,0 +1,66 @@
+# apiVersion is using the apps/v1 version of the Kubernetes API to define the Deployment resource.
+apiVersion: apps/v1
+# This file contains the definition of the Kubernetes Deployment for the MySQL database.
+kind: Deployment
+
+# metadata contains metadata about the Deployment, including its name and namespace.
+metadata:
+  name: mysql
+  namespace: clickncart
+
+# spec defines the desired state of the Deployment, including the number of replicas and the template for the pods.
+spec:
+  # specifying that there should be one replica of the MySQL pod.
+  replicas: 1
+
+  # selector defines how the Deployment finds which pods to manage. It matches pods with the label "app: mysql".
+  selector:
+    # matchLabels specifies the labels that the Deployment looks for in the pods it manages.
+    matchLabels:
+      app: mysql
+
+  # template defines the pod template used by the Deployment to create new pods.
+  template:
+    metadata:
+      # labels are key-value pairs that are attached to the pod for identification and selection purposes.
+      labels:
+        app: mysql
+
+    # spec defines the desired state of the pod, including the containers and volumes.
+    spec:
+      # containers is a list of container specifications that define the containers to be run in the pod.
+      containers:
+        - name: mysql
+
+          # image specifies the Docker image to use for the MySQL container. In this case, it is using the official MySQL image with version 8.4.
+          image: mysql:8.4
+
+          # ports is a list of ports to expose from the container. Here, it exposes port 3306 for MySQL.
+          ports:
+            - containerPort: 3306
+
+          # env is a list of environment variables to set in the container. Here, it sets the MYSQL_ROOT_PASSWORD environment variable to "rootroot".
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_ROOT_PASSWORD
+
+          # volumeMounts is a list of volumes to mount into the container's filesystem. Here, it mounts the persistent volume claim and the init.sql file.
+          volumeMounts:
+            - name: mysql-storage
+              mountPath: /var/lib/mysql
+
+            - name: mysql-initdb
+              mountPath: /docker-entrypoint-initdb.d
+
+      # volumes is a list of volumes that can be mounted by containers in the pod. Here, it defines a persistent volume claim and a config map for the init.sql file.
+      volumes:
+        - name: mysql-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc
+
+        - name: mysql-initdb
+          configMap:
+            name: mysql-initdb-config
