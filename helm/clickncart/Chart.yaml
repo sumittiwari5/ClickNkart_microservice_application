@@ -1,7 +1,0 @@
-apiVersion: v2
-name: clickncart
-description: ClickNCart Microservices Helm Chart
-type: application
-
-version: 1.0.0
-appVersion: "1.0.0"
