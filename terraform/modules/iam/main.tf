@@ -30,18 +30,6 @@ resource "aws_iam_role" "jumpserver" {
 
 
 # ============================================================
-# SSM POLICY
-# Allows Systems Manager to manage the Jump Server
-# ============================================================
-
-resource "aws_iam_role_policy_attachment" "jumpserver_ssm" {
-  role = aws_iam_role.jumpserver.name
-
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
-
-# ============================================================
 # INSTANCE PROFILE
 # EC2 requires an instance profile to use the IAM role
 # ============================================================

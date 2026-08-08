@@ -14,7 +14,6 @@ resource "aws_vpc" "this" {
   }
 }
 
-
 # ============================================================
 # INTERNET GATEWAY
 # ============================================================
@@ -27,10 +26,12 @@ resource "aws_internet_gateway" "this" {
   }
 }
 
-
 # ============================================================
 # PUBLIC SUBNETS
-# Used by ALB and Jump Server
+# Used by:
+# - Jump Server
+# - NAT Gateway
+# - Internet-facing ALB
 # ============================================================
 
 resource "aws_subnet" "public" {
@@ -49,7 +50,6 @@ resource "aws_subnet" "public" {
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   }
 }
-
 
 # ============================================================
 # PRIVATE SUBNETS
@@ -72,7 +72,6 @@ resource "aws_subnet" "private" {
   }
 }
 
-
 # ============================================================
 # PUBLIC ROUTE TABLE
 # ============================================================
@@ -90,7 +89,6 @@ resource "aws_route_table" "public" {
   }
 }
 
-
 # ============================================================
 # PUBLIC ROUTE TABLE ASSOCIATIONS
 # ============================================================
@@ -102,24 +100,66 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-
 # ============================================================
-# PRIVATE ROUTE TABLE
-#
-# IMPORTANT:
-# No NAT Gateway.
-#
-# Private subnets use VPC endpoints to access AWS services.
+# ELASTIC IP FOR NAT GATEWAY
 # ============================================================
 
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.this.id
+resource "aws_eip" "nat" {
+  domain = "vpc"
 
   tags = {
-    Name = "${var.project_name}-${var.environment}-private-rt"
+    Name = "${var.project_name}-${var.environment}-nat-eip"
   }
 }
 
+# ============================================================
+# NAT GATEWAY
+#
+# One NAT Gateway for this DEV environment.
+# It lives in the first public subnet.
+# ============================================================
+
+resource "aws_nat_gateway" "this" {
+  allocation_id = aws_eip.nat.id
+
+  subnet_id = aws_subnet.public[0].id
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-nat"
+  }
+
+  depends_on = [
+    aws_internet_gateway.this
+  ]
+}
+
+# ============================================================
+# PRIVATE ROUTE TABLES
+# ============================================================
+
+resource "aws_route_table" "private" {
+  count = length(var.private_subnet_cidrs)
+
+  vpc_id = aws_vpc.this.id
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-private-rt-${count.index + 1}"
+  }
+}
+
+# ============================================================
+# PRIVATE DEFAULT ROUTE → NAT GATEWAY
+# ============================================================
+
+resource "aws_route" "private_nat" {
+  count = length(aws_route_table.private)
+
+  route_table_id = aws_route_table.private[count.index].id
+
+  destination_cidr_block = "0.0.0.0/0"
+
+  nat_gateway_id = aws_nat_gateway.this.id
+}
 
 # ============================================================
 # PRIVATE ROUTE TABLE ASSOCIATIONS
@@ -128,247 +168,29 @@ resource "aws_route_table" "private" {
 resource "aws_route_table_association" "private" {
   count = length(aws_subnet.private)
 
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private.id
+  subnet_id = aws_subnet.private[count.index].id
+
+  route_table_id = aws_route_table.private[count.index].id
 }
-
-
-# ============================================================
-# VPC ENDPOINT SECURITY GROUP
-# ============================================================
-
-resource "aws_security_group" "vpc_endpoints" {
-  name        = "${var.project_name}-${var.environment}-vpc-endpoints-sg"
-  description = "Allow HTTPS traffic to VPC endpoints"
-  vpc_id      = aws_vpc.this.id
-
-  ingress {
-    description = "HTTPS from VPC"
-
-    from_port = 443
-    to_port   = 443
-    protocol  = "tcp"
-
-    cidr_blocks = [
-      var.vpc_cidr
-    ]
-  }
-
-  egress {
-    description = "Allow all outbound traffic"
-
-    from_port = 0
-    to_port   = 0
-    protocol  = "-1"
-
-    cidr_blocks = [
-      "0.0.0.0/0"
-    ]
-  }
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-vpc-endpoints-sg"
-  }
-}
-
 
 # ============================================================
 # S3 GATEWAY ENDPOINT
 #
-# ECR uses S3 for image layers.
-# Gateway endpoints have no hourly charge.
+# Keeps S3 traffic inside AWS instead of going through NAT.
 # ============================================================
 
 resource "aws_vpc_endpoint" "s3" {
   vpc_id = aws_vpc.this.id
 
-  service_name = "com.amazonaws.${var.aws_region}"
+  service_name = "com.amazonaws.${var.aws_region}.s3"
 
   vpc_endpoint_type = "Gateway"
 
-  route_table_ids = [
-    aws_route_table.private.id
-  ]
+  route_table_ids = aws_route_table.private[*].id
 
   tags = {
-    Name = "${var.project_name}-${var.environment}-s3-endpoint"
-  }
-}
-
-
-# ============================================================
-# ECR API ENDPOINT
-# ============================================================
-
-resource "aws_vpc_endpoint" "ecr_api" {
-  vpc_id = aws_vpc.this.id
-
-  service_name = "com.amazonaws.${var.aws_region}.ecr.api"
-
-  vpc_endpoint_type = "Interface"
-
-  subnet_ids = aws_subnet.private[*].id
-
-  security_group_ids = [
-    aws_security_group.vpc_endpoints.id
-  ]
-
-  private_dns_enabled = true
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-ecr-api-endpoint"
-  }
-}
-
-
-# ============================================================
-# ECR DKR ENDPOINT
-# ============================================================
-
-resource "aws_vpc_endpoint" "ecr_dkr" {
-  vpc_id = aws_vpc.this.id
-
-  service_name = "com.amazonaws.${var.aws_region}.ecr.dkr"
-
-  vpc_endpoint_type = "Interface"
-
-  subnet_ids = aws_subnet.private[*].id
-
-  security_group_ids = [
-    aws_security_group.vpc_endpoints.id
-  ]
-
-  private_dns_enabled = true
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-ecr-dkr-endpoint"
-  }
-}
-
-
-# ============================================================
-# EC2 ENDPOINT
-# Required by several AWS components.
-# ============================================================
-
-resource "aws_vpc_endpoint" "ec2" {
-  vpc_id = aws_vpc.this.id
-
-  service_name = "com.amazonaws.${var.aws_region}.ec2"
-
-  vpc_endpoint_type = "Interface"
-
-  subnet_ids = aws_subnet.private[*].id
-
-  security_group_ids = [
-    aws_security_group.vpc_endpoints.id
-  ]
-
-  private_dns_enabled = true
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-ec2-endpoint"
-  }
-}
-
-
-# ============================================================
-# STS ENDPOINT
-# Required for IAM roles for service accounts.
-# ============================================================
-
-resource "aws_vpc_endpoint" "sts" {
-  vpc_id = aws_vpc.this.id
-
-  service_name = "com.amazonaws.${var.aws_region}.sts"
-
-  vpc_endpoint_type = "Interface"
-
-  subnet_ids = aws_subnet.private[*].id
-
-  security_group_ids = [
-    aws_security_group.vpc_endpoints.id
-  ]
-
-  private_dns_enabled = true
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-sts-endpoint"
-  }
-}
-
-
-# ============================================================
-# SSM ENDPOINT
-# Useful for managing instances without SSH/EIP.
-# ============================================================
-
-resource "aws_vpc_endpoint" "ssm" {
-  vpc_id = aws_vpc.this.id
-
-  service_name = "com.amazonaws.${var.aws_region}.ssm"
-
-  vpc_endpoint_type = "Interface"
-
-  subnet_ids = aws_subnet.private[*].id
-
-  security_group_ids = [
-    aws_security_group.vpc_endpoints.id
-  ]
-
-  private_dns_enabled = true
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-ssm-endpoint"
-  }
-}
-
-
-# ============================================================
-# SSM MESSAGES ENDPOINT
-# ============================================================
-
-resource "aws_vpc_endpoint" "ssmmessages" {
-  vpc_id = aws_vpc.this.id
-
-  service_name = "com.amazonaws.${var.aws_region}.ssmmessages"
-
-  vpc_endpoint_type = "Interface"
-
-  subnet_ids = aws_subnet.private[*].id
-
-  security_group_ids = [
-    aws_security_group.vpc_endpoints.id
-  ]
-
-  private_dns_enabled = true
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-ssmmessages-endpoint"
-  }
-}
-
-
-# ============================================================
-# EC2 MESSAGES ENDPOINT
-# ============================================================
-
-resource "aws_vpc_endpoint" "ec2messages" {
-  vpc_id = aws_vpc.this.id
-
-  service_name = "com.amazonaws.${var.aws_region}.ec2messages"
-
-  vpc_endpoint_type = "Interface"
-
-  subnet_ids = aws_subnet.private[*].id
-
-  security_group_ids = [
-    aws_security_group.vpc_endpoints.id
-  ]
-
-  private_dns_enabled = true
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-ec2messages-endpoint"
+    Name        = "${var.project_name}-${var.environment}-s3-endpoint"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }
