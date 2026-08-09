@@ -52,12 +52,6 @@ variable "private_subnet_cidrs" {
   ]
 }
 
-variable "eks_version" {
-  description = "EKS Kubernetes version"
-  type        = string
-  default     = "1.34"
-}
-
 variable "node_instance_type" {
   description = "EKS worker node instance type"
   type        = string
@@ -96,6 +90,7 @@ variable "admin_ip_cidr" {
 }
 
 variable "kubernetes_version" {
+  description = "EKS Kubernetes version"
   type    = string
   default = "1.34"
 }

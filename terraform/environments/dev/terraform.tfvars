@@ -4,4 +4,4 @@ environment  = "dev"
 
 key_name = "YOUR_EXISTING_KEYPAIR_NAME"
 
-admin_ip_cidr = "YOUR.PUBLIC.IP.ADDRESS/32"
+admin_ip_cidr = "YOUR.PUBLIC.IP.ADDRESS/32" # run the command "curl -s ifconfig.me" on your ubuntu machine
