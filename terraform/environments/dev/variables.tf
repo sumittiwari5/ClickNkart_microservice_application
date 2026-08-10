@@ -94,3 +94,67 @@ variable "kubernetes_version" {
   type    = string
   default = "1.34"
 }
+
+# ============================================================
+# RDS
+# ============================================================
+
+variable "rds_engine_version" {
+  description = "MySQL engine version for RDS"
+  type        = string
+  default     = "8.0"
+}
+
+variable "rds_instance_class" {
+  description = "RDS instance class"
+  type        = string
+  default     = "db.t3.micro"
+}
+
+variable "rds_allocated_storage" {
+  description = "Initial RDS storage in GB"
+  type        = number
+  default     = 20
+}
+
+variable "rds_max_allocated_storage" {
+  description = "Maximum RDS storage in GB"
+  type        = number
+  default     = 50
+}
+
+variable "rds_db_name" {
+  description = "Initial database created by RDS"
+  type        = string
+  default     = "clickncart"
+}
+
+variable "rds_db_username" {
+  description = "RDS master username"
+  type        = string
+  sensitive   = true
+}
+
+variable "rds_db_password" {
+  description = "RDS master password"
+  type        = string
+  sensitive   = true
+}
+
+variable "rds_backup_retention_period" {
+  description = "RDS automated backup retention period in days"
+  type        = number
+  default     = 7
+}
+
+variable "rds_skip_final_snapshot" {
+  description = "Skip final RDS snapshot when destroying the database"
+  type        = bool
+  default     = true
+}
+
+variable "rds_deletion_protection" {
+  description = "Enable RDS deletion protection"
+  type        = bool
+  default     = false
+}
