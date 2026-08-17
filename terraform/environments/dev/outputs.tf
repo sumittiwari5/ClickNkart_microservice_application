@@ -32,3 +32,34 @@ output "rds_endpoint_with_port" {
   description = "RDS endpoint with port"
   value       = module.rds.rds_endpoint_with_port
 }
+
+# ============================================
+# Jumpserver
+# ============================================
+output "jumpserver_instance_id" {
+  value = module.jumpserver.instance_id
+}
+
+output "jumpserver_private_ip" {
+  value = module.jumpserver.private_ip
+}
+
+# ============================================
+# Security Group IDs 
+# ============================================
+
+output "jumpserver_security_group_id" {
+  value = module.security_groups.jumpserver_security_group_id
+}
+
+output "eks_cluster_security_group_id" {
+  value = module.security_groups.eks_cluster_security_group_id
+}
+
+output "eks_nodes_security_group_id" {
+  value = module.security_groups.eks_nodes_security_group_id
+}
+
+output "rds_security_group_id" {
+  value = module.security_groups.rds_security_group_id
+}
