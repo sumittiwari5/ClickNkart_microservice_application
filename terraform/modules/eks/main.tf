@@ -63,10 +63,6 @@ module "eks" {
         }
       })
     }
-
-    aws-ebs-csi-driver = {
-      most_recent = true
-    }
   }
 
   #------------------------
@@ -85,8 +81,6 @@ module "eks" {
         AmazonEC2ContainerRegistryPullOnly = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly"
 
         AmazonEKS_CNI_Policy = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-
-        AmazonEBSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
      }
 
       instance_types = [var.node_instance_type]

@@ -80,6 +80,17 @@ module "eks" {
   jumpserver_role_arn = module.iam.jumpserver_role_arn
 }
 
+resource "aws_security_group_rule" "rds_from_eks_nodes" {
+  description              = "MySQL access from EKS nodes"
+  type                     = "ingress"
+  from_port                = 3306
+  to_port                  = 3306
+  protocol                 = "tcp"
+
+  security_group_id        = module.security_groups.rds_security_group_id
+  source_security_group_id = module.eks.node_security_group_id
+}
+
 module "iam" {
   source = "../../modules/iam"
 

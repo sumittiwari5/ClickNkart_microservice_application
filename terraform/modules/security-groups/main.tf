@@ -32,14 +32,6 @@ resource "aws_security_group" "rds" {
   vpc_id      = var.vpc_id
 
   ingress {
-    description     = "MySQL access from EKS nodes"
-    protocol        = "tcp"
-    from_port       = 3306
-    to_port         = 3306
-    security_groups = [aws_security_group.eks_nodes.id]
-  }
-
-  ingress {
     description     = "MySQL access from Jump Server"
     protocol        = "tcp"
     from_port       = 3306
