@@ -51,7 +51,7 @@ resource "aws_instance" "this" {
   iam_instance_profile = var.instance_profile_name
 
   # No public IPv4 / Elastic IP
-  associate_public_ip_address = false
+  associate_public_ip_address = true
 
   root_block_device {
     volume_size = 30

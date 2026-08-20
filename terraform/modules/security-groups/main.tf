@@ -8,7 +8,8 @@ resource "aws_security_group" "jumpserver" {
     protocol    = "tcp"
     from_port   = 22
     to_port     = 22
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"] #  or we can go with the cidr of the server from where we want to use ansible 
+    # so that way it would be more secure, rather than opening ssh for everyone.
   }
 
   egress {
