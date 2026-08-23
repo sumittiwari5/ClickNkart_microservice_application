@@ -12,6 +12,14 @@ resource "aws_security_group" "jumpserver" {
     # so that way it would be more secure, rather than opening ssh for everyone.
   }
 
+  ingress {
+    description = "Jenkins from administator"
+    protocol = "tcp"
+    from_port = 8080
+    to_port = 8080
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     description = "Allow all outbound traffic"
     protocol    = "-1"

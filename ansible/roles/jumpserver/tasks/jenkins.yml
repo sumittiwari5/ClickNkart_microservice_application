@@ -1,0 +1,39 @@
+---
+- name: add jenkins GPG key
+  get_url: https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
+  dest: /usr/share/keyrings/jenkins-keyring.asc
+  mode:  '0644'
+
+- name: add jenkins repository
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
+    state: present
+    filename: jenkins
+
+- name: update apt chache after adding jenkins repository
+  apt:
+    update_cache: true
+
+- name: Install java
+  apt:
+    name: 
+      - fontconfig
+      - openjdk-21-jre
+    state: present
+
+- name: install jenkins
+  apt:
+    name: jenkins
+    state: present
+
+- name: add jenkins user to docker group
+  user:
+    name: jenkins
+    groups: docker
+    append: true
+
+- name: enable jenkins service
+  systemd:
+    name: jenkins
+    enabled: true
+    state: started

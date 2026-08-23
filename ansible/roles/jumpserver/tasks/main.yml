@@ -1,0 +1,23 @@
+---
+
+- name: install common packages
+  include_tasks: packages.yml
+
+- name: install docker
+  include_tasks: docker.yml
+
+- name: install jenkins
+  include_tasks: jenkins.yml 
+
+- name: install AWS CLI
+  include_tasks: aws_cli.yml
+
+- name: install kubeclt
+  include_tasks: kubectl.yml
+
+- name: install helm
+  include_tasks: helm.yml
+
+- name: install MySQL client
+  include_tasks: mysql_client.yml
+  

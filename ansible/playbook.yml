@@ -1,0 +1,8 @@
+---
+- name: Configure ClickNCart Jumpserver
+  hosts: jumpserver
+  become: true
+
+  roles: 
+    - jumpserver
+

@@ -1,0 +1,19 @@
+---
+- name: update apt package cache
+  apt:
+    update_cache: true
+
+- name: install common packages
+  apt: 
+    name: 
+      - git
+      - curl
+      - wget
+      - unzip
+      - jq
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - apt-transport-https
+      - software-propertiesf-common
+    state: present
