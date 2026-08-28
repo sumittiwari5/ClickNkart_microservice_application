@@ -1,0 +1,17 @@
+---
+
+- name: install mysql client
+  apt:
+    name: 
+      - mysql-client
+    state: present
+
+- name: verify mysql client installation
+  command: mysql --version
+  register: mysql_version
+  changed_when: false
+
+- name: display mysql client version
+  dubug:
+    msg: "{{ mysql_version.stdout }}"
+    

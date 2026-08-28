@@ -1,0 +1,19 @@
+---
+
+- name: download helm installation script 
+  get_url:
+    url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+    dest: /tmp/get-helm-3
+    mode: '0755'
+
+- name: install helm
+  command: /tmp/get-helm-3
+
+- name: verify helm installation
+  command: helm version
+  register: helm_version
+  changed_when: false
+
+- name: display helm version
+  debug:
+    msg: "{{ helm_version.stdout }}"
