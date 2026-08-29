@@ -104,6 +104,8 @@ module "jumpserver" {
   project_name = var.project_name
   environment  = var.environment
 
+  key_name = var.key_name
+
   instance_type = var.jumpserver_instance_type
 
   public_subnet_id = module.vpc.public_subnet_ids[0]

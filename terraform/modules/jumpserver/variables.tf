@@ -28,3 +28,8 @@ variable "instance_profile_name" {
   description = "IAM instance profile for the Jump Server"
   type        = string
 }
+
+variable "key_name" {
+  description = "Existing ec2 key pair name"
+  type = string  
+}
