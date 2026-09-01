@@ -3,7 +3,7 @@
   command: aws --version
   register: aws_cli_check
   failed_when: false
-  changed-when: false
+  changed_when: false
 
 - name: download AWS CLI
   get_url: 

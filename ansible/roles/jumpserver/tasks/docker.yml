@@ -6,13 +6,15 @@
     mode: '0755'
 
 - name: add docker GPG key
-  get_url: https://download.docker.com/linux/ubuntu/gpg
-  dest: /etc/apt/keyrings/docker.asc
-  mode: '0644'
+  get_url: 
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
 
 - name: add docker repositories
   apt_repository:
-    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable"
+    # can use this too :"deb [arch={{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else 'arm64' }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable"
     state: present
     filename: docker
 

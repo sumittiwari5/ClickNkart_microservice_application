@@ -1,8 +1,9 @@
 ---
 - name: add jenkins GPG key
-  get_url: https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
-  dest: /usr/share/keyrings/jenkins-keyring.asc
-  mode:  '0644'
+  get_url: 
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
+    dest: /usr/share/keyrings/jenkins-keyring.asc
+    mode:  '0644'
 
 - name: add jenkins repository
   apt_repository:

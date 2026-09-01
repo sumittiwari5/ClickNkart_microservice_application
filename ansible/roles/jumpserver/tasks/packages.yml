@@ -15,5 +15,5 @@
       - gnupg
       - lsb-release
       - apt-transport-https
-      - software-propertiesf-common
+      - software-properties-common
     state: present

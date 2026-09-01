@@ -3,7 +3,7 @@
   uri:
     url: https://dl.k8s.io/release/stable.txt
     return_content: true
-  register: kubernetese_version
+  register: kubernetes_version
   changed_when: false
 
 - name: download kubectl

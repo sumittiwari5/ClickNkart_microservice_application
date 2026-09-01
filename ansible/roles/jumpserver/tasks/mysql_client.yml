@@ -12,6 +12,6 @@
   changed_when: false
 
 - name: display mysql client version
-  dubug:
+  debug:
     msg: "{{ mysql_version.stdout }}"
     
