@@ -4,6 +4,7 @@ module "eks" {
 
   name               = var.cluster_name
   kubernetes_version = var.kubernetes_version
+  enable_irsa        = true
 #-------------------
 # Networkins :
 #-------------------
