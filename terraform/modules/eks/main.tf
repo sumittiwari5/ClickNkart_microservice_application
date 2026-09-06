@@ -108,6 +108,10 @@ module "eks" {
     }
   }
 
+  # NOTE: cluster_security_group_additional_rules removed — manage security group rules
+  # separately (e.g., with aws_security_group_rule) because this module version
+  # does not accept the cluster_security_group_additional_rules attribute.
+
   tags = {
     Project     = var.project_name
     Environment = var.environment

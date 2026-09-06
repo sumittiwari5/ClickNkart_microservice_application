@@ -78,6 +78,7 @@ module "eks" {
   node_desired_size = var.node_desired_size
 
   jumpserver_role_arn = module.iam.jumpserver_role_arn
+  jumpserver_security_group_id = module.security_groups.jumpserver_security_group_id
 }
 
 resource "aws_security_group_rule" "rds_from_eks_nodes" {
@@ -113,4 +114,19 @@ module "jumpserver" {
   security_group_id = module.security_groups.jumpserver_security_group_id
 
   instance_profile_name = module.iam.jumpserver_instance_profile_name
+}
+
+# ========================================
+# JUMP SERVER → EKS API ACCESS
+# ========================================
+
+resource "aws_vpc_security_group_ingress_rule" "jumpserver_to_eks_api" {
+  security_group_id        = module.eks.cluster_security_group_id
+  referenced_security_group_id = module.security_groups.jumpserver_security_group_id
+
+  from_port   = 443
+  to_port     = 443
+  ip_protocol = "tcp"
+
+  description = "Allow Jump Server to access EKS API"
 }

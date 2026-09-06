@@ -45,3 +45,34 @@ resource "aws_iam_instance_profile" "jumpserver" {
     Environment = var.environment
   }
 }
+
+# ============================================================
+# JUMP SERVER - EKS Access Policy
+# Allows the Jumpserver to query and manage the EKS cluster
+# ============================================================
+
+resource "aws_iam_role_policy" "jumpserver_eks" {
+  name = "${var.project_name}-${var.environment}-jumpserver-eks"
+  role = aws_iam_role.jumpserver.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "eks:DescribeCluster",
+          "eks:ListClusters",
+          "eks:ListNodegroups",
+          "eks:DescribeNodegroup",
+          "eks:ListUpdates",
+          "eks:DescribeUpdate"
+        ]
+        
+        Resource = "*"
+      }
+    ]
+  })
+  
+}

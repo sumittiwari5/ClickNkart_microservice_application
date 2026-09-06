@@ -42,3 +42,8 @@ variable "jumpserver_role_arn" {
   description = "IAM role ARN used by the jump server to access EKS"
   type        = string
 }
+
+variable "jumpserver_security_group_id" {
+  description = "Security group ID for the jump server"
+  type        = string
+}
