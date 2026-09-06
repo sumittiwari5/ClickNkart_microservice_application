@@ -52,14 +52,6 @@ output "jumpserver_security_group_id" {
   value = module.security_groups.jumpserver_security_group_id
 }
 
-output "eks_cluster_security_group_id" {
-  value = module.security_groups.eks_cluster_security_group_id
-}
-
-output "eks_nodes_security_group_id" {
-  value = module.security_groups.eks_nodes_security_group_id
-}
-
 output "rds_security_group_id" {
   value = module.security_groups.rds_security_group_id
 }
