@@ -47,3 +47,8 @@ variable "jumpserver_security_group_id" {
   description = "Security group ID for the jump server"
   type        = string
 }
+
+variable "aws_load_balancer_controller_role_arn" {
+  description = "IAM role ARN for AWS Load Balancer Controller"
+  type        = string
+}
