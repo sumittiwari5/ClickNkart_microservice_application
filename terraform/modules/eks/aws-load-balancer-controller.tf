@@ -29,7 +29,7 @@ resource "helm_release" "aws_load_balancer_controller" {
     },
     {
       name  = "region"
-      value = data.aws_region.current.name
+      value = var.aws_region
     },
     {
       name  = "vpcId"
