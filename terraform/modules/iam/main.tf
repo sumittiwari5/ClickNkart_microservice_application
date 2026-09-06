@@ -76,3 +76,18 @@ resource "aws_iam_role_policy" "jumpserver_eks" {
   })
   
 }
+
+# ==========================
+# aws load balancer controller
+# ==========================
+resource "aws_iam_policy" "aws_load_balancer_controller" {
+  name        = "${var.project_name}-${var.environment}-aws-load-balancer-controller"
+  description = "IAM policy for AWS Load Balancer Controller"
+
+  policy = file("${path.module}/aws-load-balancer-controller-policy.json")
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
