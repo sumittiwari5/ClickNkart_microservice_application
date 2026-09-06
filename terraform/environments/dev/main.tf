@@ -64,6 +64,7 @@ module "eks" {
 
   project_name = var.project_name
   environment  = var.environment
+  aws_region = var.aws_region
 
   cluster_name       = local.cluster_name
   kubernetes_version = var.kubernetes_version
