@@ -52,3 +52,8 @@ variable "aws_load_balancer_controller_role_arn" {
   description = "IAM role ARN for AWS Load Balancer Controller"
   type        = string
 }
+
+variable "aws_region" {
+  description = "AWS region where EKS is deployed"
+  type        = string
+}
