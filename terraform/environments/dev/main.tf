@@ -79,6 +79,8 @@ module "eks" {
 
   jumpserver_role_arn = module.iam.jumpserver_role_arn
   jumpserver_security_group_id = module.security_groups.jumpserver_security_group_id
+
+  aws_load_balancer_controller_role_arn = module.iam.aws_load_balancer_controller_role_arn
 }
 
 resource "aws_security_group_rule" "rds_from_eks_nodes" {
