@@ -97,6 +97,7 @@ module "iam" {
 
   project_name = var.project_name
   environment  = var.environment
+  eks_oidc_provider_arn = module.eks.cluster_oidc_provider_arn
 }
 
 module "jumpserver" {
