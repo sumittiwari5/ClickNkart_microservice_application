@@ -13,8 +13,8 @@ aws eks update-kubeconfig \
   --region us-east-1 \
   --name clickncart-dev-eks
 
-# should see like 
-# Added new context arn:aws:eks:us-east-1:000606610451:cluster/clickncart-dev-eks to /home/ubuntu/.kube/config
+# should see something like :
+ Added new context arn:aws:eks:us-east-1:000606610451:cluster/clickncart-dev-eks to /home/ubuntu/.kube/config
 
 # 4. after that once check the current cotext 
 kubectl config current-context
