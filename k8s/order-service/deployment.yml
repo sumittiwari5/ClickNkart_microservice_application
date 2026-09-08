@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: order-service
-          image: sumittiwari05/clickncart-order-service:v1
+          image: sumittiwari05/clickncart-order-service:v2
 
           imagePullPolicy: Always
 
@@ -37,13 +37,22 @@ spec:
 
           env:
             - name: MYSQL_HOST
-              value: mysql
-
-            - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: mysql-secret
-                  key: MYSQL_ROOT_PASSWORD
+                  name: rds-secret
+                  key: MYSQL_HOST
+
+            - name: MYSQL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rds-secret
+                  key: MYSQL_USERNAME
+            
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rds-secret
+                  key: MYSQL_PASSWORD
 
             - name: CATALOG_SERVICE_URL
               value: http://catalog-service:8082
